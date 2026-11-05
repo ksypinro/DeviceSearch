@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "rooms": [
+    {"id":"living-room","name":"Living Room","aliases":["living room","lounge","living","family room"],"localized":{"bn":["বসার ঘর"]},"concepts":{"entertain":0.5}},
+    {"id":"kitchen","name":"Kitchen","aliases":["kitchen"],"localized":{"bn":["রান্নাঘর"]},"concepts":{"kitchen":0.6}},
+    {"id":"dining-room","name":"Dining Room","aliases":["dining room","dining"],"localized":{},"concepts":{"kitchen":0.3}},
+    {"id":"bedroom","name":"Bedroom","aliases":["bedroom"],"localized":{"bn":["বেডরুম","শোবার ঘর"]},"concepts":{"sleep":0.6}},
+    {"id":"master-bedroom","name":"Master Bedroom","aliases":["master bedroom","main bedroom","primary bedroom","master"],"localized":{},"concepts":{"sleep":0.6}},
+    {"id":"kids-room","name":"Kids Room","aliases":["kids room","kid room","nursery","childrens room","children room","baby room"],"localized":{},"concepts":{"security":0.2,"sleep":0.5}},
+    {"id":"guest-room","name":"Guest Room","aliases":["guest room","guest bedroom","guestroom"],"localized":{},"concepts":{"sleep":0.5}},
+    {"id":"bathroom","name":"Bathroom","aliases":["bathroom","bath","washroom","restroom","toilet"],"localized":{},"concepts":{"water":0.4}},
+    {"id":"hallway","name":"Hallway","aliases":["hallway","hall","corridor"],"localized":{},"concepts":{}},
+    {"id":"entrance","name":"Entrance","aliases":["entrance","entry","foyer","entryway"],"localized":{},"concepts":{"security":0.3,"door":0.5}},
+    {"id":"garage","name":"Garage","aliases":["garage"],"localized":{},"concepts":{"door":0.3,"power":0.2,"outdoor":0.3}},
+    {"id":"garden","name":"Garden","aliases":["garden","backyard","yard","lawn"],"localized":{},"concepts":{"water":0.2,"outdoor":1}},
+    {"id":"porch","name":"Porch","aliases":["porch","veranda","front porch"],"localized":{},"concepts":{"door":0.3,"outdoor":0.8}},
+    {"id":"balcony","name":"Balcony","aliases":["balcony"],"localized":{},"concepts":{"outdoor":0.7}},
+    {"id":"patio","name":"Patio","aliases":["patio","terrace","deck"],"localized":{},"concepts":{"outdoor":0.8}},
+    {"id":"laundry-room","name":"Laundry Room","aliases":["laundry room","laundry","utility room"],"localized":{},"concepts":{"laundry":0.7}},
+    {"id":"home-office","name":"Home Office","aliases":["home office","office","study","workroom"],"localized":{},"concepts":{"network":0.3}},
+    {"id":"basement","name":"Basement","aliases":["basement","cellar"],"localized":{},"concepts":{"water":0.2}},
+    {"id":"attic","name":"Attic","aliases":["attic","loft"],"localized":{},"concepts":{}},
+    {"id":"gym","name":"Gym","aliases":["gym","workout room"],"localized":{},"concepts":{"audio":0.3}},
+    {"id":"lobby","name":"Lobby","aliases":["lobby","reception"],"localized":{},"concepts":{"security":0.3}},
+    {"id":"meeting-room","name":"Meeting Room","aliases":["meeting room","conference room","boardroom"],"localized":{},"concepts":{"screen":0.4}},
+    {"id":"server-room","name":"Server Room","aliases":["server room","server","it room","rack room"],"localized":{},"concepts":{"cool":0.3,"network":0.6}},
+    {"id":"pantry","name":"Pantry","aliases":["pantry"],"localized":{},"concepts":{"kitchen":0.4}},
+    {"id":"staircase","name":"Staircase","aliases":["staircase","stairs","stairway"],"localized":{},"concepts":{}},
+    {"id":"media-room","name":"Media Room","aliases":["media room","home theater","home theatre","theater","cinema room"],"localized":{},"concepts":{"screen":0.4,"entertain":0.8}}
+  ]
+}

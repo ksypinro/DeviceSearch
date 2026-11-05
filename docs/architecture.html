@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Device Search Engine</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Public+Sans:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a signal chain. One live trace at the top, then the stages it passed through, the data plane, the module layers. */
+:root {
+  --bg: #f2f4f8;
+  --surface: #ffffff;
+  --sunk: #e8ecf2;
+  --ink: #141b26;
+  --muted: #586579;
+  --line: #d6dce6;
+  --accent: #2b59c3;
+  --accent-soft: #e3eafb;
+  --instant: #0e8587;
+  --hybrid: #6a4fc8;
+  --refined: #b8730a;
+  --fallback: #77818f;
+  --ok: #1f8a4c;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Public Sans", "Helvetica Neue", Arial, system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e131a; --surface: #161d27; --sunk: #1c2530; --ink: #e5eaf1; --muted: #97a2b2; --line: #2a3442;
+    --accent: #84a6ff; --accent-soft: #1d2a47; --instant: #3cc0c2; --hybrid: #a28dff; --refined: #eeb04a;
+    --fallback: #8d97a6; --ok: #4cc47e; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e131a; --surface: #161d27; --sunk: #1c2530; --ink: #e5eaf1; --muted: #97a2b2; --line: #2a3442;
+  --accent: #84a6ff; --accent-soft: #1d2a47; --instant: #3cc0c2; --hybrid: #a28dff; --refined: #eeb04a;
+  --fallback: #8d97a6; --ok: #4cc47e; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 15px/1.55 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 64px;
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 56px; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: clamp(2rem, 4.6vw, 3.1rem); font-weight: 700; line-height: 1.05; }
+h2 { font-size: 1.6rem; font-weight: 700; }
+h3 { font-size: 1.05rem; font-weight: 700; }
+p { margin: 0; }
+.eyebrow { font: 600 0.72rem/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.lede { color: var(--muted); max-width: 64ch; font-size: 1.05rem; }
+.mono { font-family: var(--mono); }
+.section-head { display: grid; gap: 8px; margin-bottom: 20px; }
+.section-head p { color: var(--muted); max-width: 70ch; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+
+/* Header */
+header { display: grid; gap: 16px; padding-top: 40px; }
+.facts { display: flex; flex-wrap: wrap; gap: 8px 22px; font: 0.85rem/1.4 var(--mono); color: var(--muted); }
+.facts b { color: var(--ink); font-weight: 600; }
+
+/* Trace */
+.query-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chip {
+  border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 7px 14px;
+  font: 0.9rem/1.2 var(--mono); cursor: pointer; transition: border-color .15s, background .15s;
+}
+.chip:hover { border-color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.replay {
+  margin-left: auto; border: 0; background: none; color: var(--accent); cursor: pointer; font-weight: 600;
+  display: inline-flex; gap: 6px; align-items: center; padding: 7px 4px;
+}
+.trace { margin-top: 18px; display: grid; gap: 16px; }
+.understood {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px;
+  display: flex; flex-wrap: wrap; gap: 10px 26px; align-items: baseline;
+}
+.kv { display: grid; gap: 4px; min-width: 0; }
+.kv .eyebrow { font-size: 0.66rem; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { font: 0.8rem/1.2 var(--mono); padding: 3px 8px; border-radius: 6px; background: var(--sunk); }
+.tag.intent { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.tag.minus { text-decoration: line-through; color: var(--muted); }
+.phases { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.phase {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px 16px;
+  border-top: 4px solid var(--pc); display: grid; gap: 10px; align-content: start; min-width: 0;
+  transition: opacity .3s, transform .3s;
+}
+.phase.dim { opacity: .35; }
+.phase.lit { transform: translateY(-2px); box-shadow: 0 6px 18px -10px var(--pc); }
+.phase.absent { border-top-style: dashed; background: transparent; }
+.phase-name { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.phase-name h3 { color: var(--pc); text-transform: capitalize; }
+.phase-name .when { font: 0.75rem var(--mono); color: var(--muted); }
+.stats { display: flex; gap: 16px; font: 0.8rem/1.3 var(--mono); color: var(--muted); flex-wrap: wrap; }
+.stats b { color: var(--ink); font-size: 1rem; display: block; font-variant-numeric: tabular-nums; }
+.results { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 0.88rem; }
+.results li { display: flex; gap: 8px; min-width: 0; }
+.results .n { font: 0.75rem/1.6 var(--mono); color: var(--muted); width: 1.2em; flex: none; }
+.results .room { color: var(--muted); }
+.results .name { overflow-wrap: anywhere; }
+.phase .note { font-size: 0.85rem; color: var(--muted); }
+.timing { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--sunk); }
+.timing span { display: block; height: 100%; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font: 0.72rem var(--mono); color: var(--muted); }
+.legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; vertical-align: 0; }
+
+.lower { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+.panel > p.sub { color: var(--muted); font-size: 0.85rem; }
+.lamps { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+.lamp { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; display: grid; gap: 2px; transition: background .2s, border-color .2s; }
+.lamp .lname { font: 600 0.82rem var(--mono); display: flex; align-items: center; gap: 7px; }
+.lamp .lname::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--line); flex: none; transition: background .2s, box-shadow .2s; }
+.lamp .lgroup { font-size: 0.72rem; color: var(--muted); }
+.lamp.on { border-color: var(--accent); background: var(--accent-soft); }
+.lamp.on .lname::before { background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+.gate { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.gate li { display: grid; grid-template-columns: 2.4em 1fr auto; gap: 8px; align-items: baseline; font-size: 0.86rem; padding: 4px 0; border-bottom: 1px dashed var(--line); }
+.gate li:last-child { border-bottom: 0; }
+.gate .rule { font: 600 0.78rem var(--mono); color: var(--muted); }
+.gate .res { font: 0.75rem var(--mono); color: var(--muted); white-space: nowrap; }
+.gate li.fired .rule, .gate li.fired .res { color: var(--accent); }
+.gate li.fired { font-weight: 600; }
+.gate li.skipped { opacity: .4; }
+.verdict { font: 600 0.9rem/1.4 var(--body); padding: 10px 12px; border-radius: 8px; background: var(--sunk); }
+.verdict.rerank { background: color-mix(in srgb, var(--refined) 16%, transparent); }
+.provenance { font-size: 0.8rem; color: var(--muted); max-width: 90ch; }
+
+/* Pipeline */
+.chain { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; position: relative; }
+.stage {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 10px 12px;
+  text-align: left; cursor: pointer; display: grid; gap: 4px; align-content: start; min-width: 0; position: relative;
+  transition: border-color .15s, background .15s;
+}
+.stage:hover { border-color: var(--accent); }
+.stage[aria-selected="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.stage .sid { font: 600 0.72rem var(--mono); color: var(--muted); }
+.stage .sname { font: 700 0.92rem/1.2 var(--display); overflow-wrap: anywhere; }
+.stage.hot .sid { color: var(--accent); }
+.stage { border-bottom: 4px solid var(--pc); }
+.bands { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 10px; font: 0.78rem var(--mono); color: var(--muted); }
+.bands span { display: inline-flex; align-items: center; gap: 6px; }
+.bands i { width: 18px; height: 4px; border-radius: 2px; background: var(--pc); }
+.stage-detail { margin-top: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px 20px; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 22px; }
+.stage-detail ul { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; }
+.stage-detail .mods { display: flex; flex-wrap: wrap; gap: 6px; }
+.numbers { display: grid; gap: 0; font-size: 0.85rem; }
+.numbers div { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+.numbers div:last-child { border-bottom: 0; }
+.numbers span:last-child { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+
+/* Data plane */
+.flow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; align-items: stretch; }
+.node { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; display: grid; gap: 6px; align-content: start; min-width: 0; position: relative; }
+.node + .node { margin-left: 28px; }
+.node + .node::before {
+  content: "→"; position: absolute; left: -24px; top: 50%; transform: translateY(-50%); color: var(--muted); font: 1.1rem var(--mono);
+}
+.node p { font-size: 0.86rem; color: var(--muted); }
+.side { margin-top: 12px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+
+/* Modules */
+.layers { display: grid; gap: 8px; }
+.layer { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px; align-items: center; }
+.layer .lbl { font: 600 0.72rem/1.3 var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.mods-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.mod {
+  border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px 12px; cursor: pointer;
+  display: grid; gap: 2px; text-align: left; min-width: 0; max-width: 100%; transition: border-color .15s, background .15s, opacity .15s;
+}
+.mod .mn { font: 600 0.86rem var(--mono); }
+.mod .md { font-size: 0.76rem; color: var(--muted); }
+.mod.app { border-style: dashed; }
+.layers.focus .mod { opacity: .35; }
+.layers.focus .mod.sel { opacity: 1; border-color: var(--accent); background: var(--accent-soft); }
+.layers.focus .mod.dep { opacity: 1; border-color: var(--instant); }
+.layers.focus .mod.user { opacity: 1; border-color: var(--refined); }
+.mod-help { font-size: 0.85rem; color: var(--muted); min-height: 1.5em; }
+.mod-help b { color: var(--ink); }
+.key { display: inline-block; width: 10px; height: 10px; border-radius: 3px; border: 2px solid; vertical-align: -1px; margin: 0 4px 0 10px; }
+
+/* Measured */
+.measure { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.bar-row { display: grid; grid-template-columns: 9.5em minmax(0, 1fr) 4.2em; gap: 10px; align-items: center; font-size: 0.86rem; }
+.bar { height: 12px; background: var(--sunk); border-radius: 6px; overflow: hidden; }
+.bar span { display: block; height: 100%; border-radius: 6px; }
+.bar-row .v { font-family: var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
+
+footer { color: var(--muted); font-size: 0.8rem; }
+
+@media (max-width: 860px) {
+  .phases { grid-template-columns: minmax(0, 1fr); }
+  .lower, .measure, .stage-detail, .side { grid-template-columns: minmax(0, 1fr); }
+  .chain { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .flow { grid-template-columns: minmax(0, 1fr); gap: 26px; }
+  .node + .node { margin-left: 0; }
+  .node + .node::before { content: "↓"; left: 50%; top: -22px; transform: translateX(-50%); }
+  .layer { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .replay { margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">DeviceSearch package · runs on the device</span>
+    <h1>Device Search Engine</h1>
+    <p class="lede">How the app's own search turns what someone types into a ranked list of their devices. Every query runs through up to three phases. Each phase replaces the results on screen as soon as it finishes, so the list is useful from the first keystroke and gets better when the person submits.</p>
+    <div class="facts">
+      <span><b>14</b> Swift modules</span>
+      <span><b>9</b> retrievers</span>
+      <span><b>3</b> result phases</span>
+      <span><b>8</b> pipeline stages</span>
+      <span><b>0</b> network calls</span>
+    </div>
+  </header>
+
+  <section aria-labelledby="trace-h">
+    <div class="section-head">
+      <span class="eyebrow">Live trace</span>
+      <h2 id="trace-h">Follow a query through the engine</h2>
+      <p>Pick a query to see what the engine understood, what each phase returned, which retrievers found the top result, and why the model ran or didn't.</p>
+    </div>
+    <div class="query-bar" role="group" aria-label="Sample queries" id="queries"></div>
+    <div class="trace" id="trace">
+      <div class="understood" id="understood"></div>
+      <div class="phases" id="phases"></div>
+      <div class="lower">
+        <div class="panel">
+          <h3>Retrievers behind the top result</h3>
+          <p class="sub">Retrievers run in parallel. Each one returns its own ranked list, and fusion merges them.</p>
+          <div class="lamps" id="lamps"></div>
+        </div>
+        <div class="panel">
+          <h3>Should the model re-rank?</h3>
+          <p class="sub">The gate runs its rules in order, and the first rule that decides wins. Only submitted searches get this far.</p>
+          <ol class="gate" id="gate"></ol>
+          <div class="verdict" id="verdict"></div>
+        </div>
+      </div>
+      <p class="provenance">These are recorded runs, not a simulation. Each query ran as a submitted search against the engine on the 500-device sample home, with the lexicon embedding for meaning and the test suite's simulated re-ranker standing in for Apple Intelligence. Times are in milliseconds from a debug build on a Mac. On a phone, the meaning phase uses the contextual embedding and the real model takes up to its 2-second deadline.</p>
+    </div>
+  </section>
+
+  <section aria-labelledby="pipe-h">
+    <div class="section-head">
+      <span class="eyebrow">Stages S1–S8</span>
+      <h2 id="pipe-h">The pipeline</h2>
+      <p>Eight stages plus the meaning plug-in, in the order they run. The colour under each stage shows the phase it belongs to. Select a stage for details.</p>
+    </div>
+    <div class="chain" role="tablist" aria-label="Pipeline stages" id="chain"></div>
+    <div class="bands">
+      <span style="--pc: var(--instant)"><i></i>Instant: S1–S4, same frame</span>
+      <span style="--pc: var(--hybrid)"><i></i>Hybrid: meaning, then S3–S4 again</span>
+      <span style="--pc: var(--refined)"><i></i>Refined or fallback: S5–S8, submitted only</span>
+    </div>
+    <div class="stage-detail" id="stage-detail" role="tabpanel"></div>
+  </section>
+
+  <section aria-labelledby="data-h">
+    <div class="section-head">
+      <span class="eyebrow">Data plane</span>
+      <h2 id="data-h">Keeping the index current</h2>
+      <p>Queries never wait for the index. Device changes build a new snapshot in the background and swap it in. A query in flight keeps the snapshot it started with.</p>
+    </div>
+    <div class="flow">
+      <div class="node"><span class="eyebrow">Your app</span><h3>Device events</h3><p>The device store sends snapshots of the home through <span class="mono">DeviceEventBridge</span>: adds, removals, renames, room moves, status, usage.</p></div>
+      <div class="node"><span class="eyebrow">IndexSync</span><h3>Coalesce and rebuild</h3><p>Name and room changes wait 250 ms for more changes, then every lexical structure is rebuilt. That takes 5–15 ms for 500 devices. Status and usage take a fast path with no rebuild.</p></div>
+      <div class="node"><span class="eyebrow">IndexSnapshot</span><h3>One immutable value</h3><p>Documents, vocabulary, inverted index, name and fuzzy indexes, facet bitsets and vectors. Each rebuild raises the generation number.</p></div>
+      <div class="node"><span class="eyebrow">SearchEngine (actor)</span><h3>Atomic swap</h3><p>The engine takes the new snapshot. Observers such as the Spotlight indexer and the App Shortcuts refresh hear about it.</p></div>
+    </div>
+    <div class="side">
+      <div class="panel"><h3>Embeddings stay warm</h3><p class="sub">The meaning plug-in caches vectors on disk, keyed by model version and knowledge-base version. A rebuild reuses cached vectors and only embeds devices that changed.</p></div>
+      <div class="panel"><h3>Personal signals</h3><p class="sub">Usage priors are 0.7 × log(1 + uses) / log(1 + max uses) + 0.3 × favourite. A nickname is learned after the same device is picked three times for the same search. A reformulation (a new search within 5 s, with no tap in between) counts as a miss.</p></div>
+      <div class="panel"><h3>Kill switches</h3><p class="sub">Feature flags turn off meaning, re-rank, query rewrite, streaming re-rank, personalisation, nicknames, Spotlight and voice independently. With everything off, instant search still works.</p></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="mod-h">
+    <div class="section-head">
+      <span class="eyebrow">Swift package</span>
+      <h2 id="mod-h">Module layers</h2>
+      <p>Each layer depends only on the layers beneath it. The engine knows nothing about embeddings or language models: those arrive as plug-ins behind protocols, so each one can be switched off or replaced. Select a module to see what it uses<span class="key" style="border-color: var(--instant)"></span>and what uses it<span class="key" style="border-color: var(--refined)"></span>.</p>
+    </div>
+    <div class="layers" id="layers"></div>
+    <p class="mod-help" id="mod-help" aria-live="polite">Select a module.</p>
+  </section>
+
+  <section aria-labelledby="m-h">
+    <div class="section-head">
+      <span class="eyebrow">Golden set · 380 queries · 500-device home</span>
+      <h2 id="m-h">How well it works</h2>
+      <p>The evaluation suite runs 380 labelled queries across seven categories: navigational, typo, set, compound, number, descriptive and multilingual.</p>
+    </div>
+    <div class="measure">
+      <div class="panel">
+        <h3>Queries answered correctly</h3>
+        <p class="sub">Same home, same queries, compared with Spotlight's own query API over the items the app indexes.</p>
+        <div class="bar-row"><span>In-app search</span><div class="bar"><span style="width: 95%; background: var(--accent)"></span></div><span class="v">361/380</span></div>
+        <div class="bar-row"><span>CSUserQuery</span><div class="bar"><span style="width: 17.1%; background: var(--fallback)"></span></div><span class="v">65/380</span></div>
+      </div>
+      <div class="panel">
+        <h3>Descriptive queries, nDCG@5</h3>
+        <p class="sub">"Something to cool the bedroom", "movie night". Before and after the need-word and concept-routing fixes.</p>
+        <div class="bar-row"><span>Lexicon embedding</span><div class="bar"><span style="width: 92.7%; background: var(--hybrid)"></span></div><span class="v">0.927</span></div>
+        <div class="bar-row"><span>…before</span><div class="bar"><span style="width: 70.6%; background: var(--fallback)"></span></div><span class="v">0.706</span></div>
+        <div class="bar-row"><span>Contextual</span><div class="bar"><span style="width: 43.7%; background: var(--hybrid)"></span></div><span class="v">0.437</span></div>
+        <div class="bar-row"><span>Lexical only</span><div class="bar"><span style="width: 39.7%; background: var(--instant)"></span></div><span class="v">0.397</span></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>Built from the DeviceSearch package source, its Package.swift, and a trace recorded from the engine.</footer>
+</div>
+
+<script>
+const TRACE = [{"query":"Bedroom AC","intent":"compound","corrections":[],"entities":[{"kind":"room","label":"Bedroom"},{"kind":"type","label":"Air Conditioner"}],"excluded":[],"network":"","power":"","command":"","gate":{"outcome":"skip","reason":"Exact name match, pinned first","path":[{"rule":"g1ExactName","fired":true}]},"phases":[{"phase":"instant","count":2,"candidates":2,"top":["Bedroom AC \u00b7 Bedroom","Bedroom AC 2 \u00b7 Bedroom"],"evidence":["exact","facets","keywords","prefix","trigram"],"t":{"parse":0.56,"retrieve":1.87,"fuse":0.56}},{"phase":"hybrid","count":2,"candidates":2,"top":["Bedroom AC \u00b7 Bedroom","Bedroom AC 2 \u00b7 Bedroom"],"evidence":["exact","facets","keywords","prefix","trigram"],"t":{"parse":0.56,"retrieve":1.87,"fuse":0.56,"meaning":0.19}}]},{"query":"bedrom ac","intent":"compound","corrections":[{"from":"bedrom","to":"bedroom","method":"edit","confidence":0.85}],"entities":[{"kind":"room","label":"Bedroom"},{"kind":"type","label":"Air Conditioner"}],"excluded":[],"network":"","power":"","command":"","gate":{"outcome":"skip","reason":"Exact name match, pinned first","path":[{"rule":"g1ExactName","fired":true}]},"phases":[{"phase":"instant","count":2,"candidates":2,"top":["Bedroom AC \u00b7 Bedroom","Bedroom AC 2 \u00b7 Bedroom"],"evidence":["exact","facets","keywords","phonetic","prefix","trigram"],"t":{"parse":5.85,"retrieve":1.98,"fuse":0.47}},{"phase":"hybrid","count":2,"candidates":2,"top":["Bedroom AC \u00b7 Bedroom","Bedroom AC 2 \u00b7 Bedroom"],"evidence":["exact","facets","keywords","phonetic","prefix","trigram"],"t":{"parse":5.85,"retrieve":1.98,"fuse":0.47,"meaning":0.0}}]},{"query":"lights except kitchen","intent":"categorical","corrections":[],"entities":[{"kind":"type","label":"Light"}],"excluded":[{"kind":"room","label":"Kitchen"}],"network":"","power":"","command":"","gate":{"outcome":"skip","reason":"Set query: the filtered set is the answer","path":[{"rule":"g1ExactName","fired":false},{"rule":"g2SetIntent","fired":true}]},"phases":[{"phase":"instant","count":100,"candidates":100,"top":["Bedroom Light \u00b7 Bedroom","Staircase Light \u00b7 Staircase","Kids Room Light Strip \u00b7 Kids Room","Hallway Light \u00b7 Hallway","Hue Lightstrip \u00b7 Living Room"],"evidence":["facets","keywords","prefix"],"t":{"parse":0.25,"retrieve":2.21,"fuse":0.97}},{"phase":"hybrid","count":100,"candidates":100,"top":["Bedroom Light \u00b7 Bedroom","Staircase Light \u00b7 Staircase","Kids Room Light Strip \u00b7 Kids Room","Hallway Light \u00b7 Hallway","Hue Lightstrip \u00b7 Living Room"],"evidence":["facets","keywords","prefix"],"t":{"parse":0.25,"retrieve":2.21,"fuse":0.97,"meaning":0.0}}]},{"query":"offline cameras","intent":"categorical","corrections":[],"entities":[{"kind":"type","label":"Camera"}],"excluded":[],"network":"offline","power":"","command":"","gate":{"outcome":"skip","reason":"Set query: the filtered set is the answer","path":[{"rule":"g1ExactName","fired":false},{"rule":"g2SetIntent","fired":true}]},"phases":[{"phase":"instant","count":4,"candidates":4,"top":["Driveway Camera \u00b7 Garden","Garage Camera \u00b7 Garage","Backyard Camera \u00b7 Garden","Lobby Cam \u00b7 Lobby"],"evidence":["facets","keywords","prefix","trigram"],"t":{"parse":0.23,"retrieve":1.08,"fuse":0.12}},{"phase":"hybrid","count":4,"candidates":4,"top":["Driveway Camera \u00b7 Garden","Garage Camera \u00b7 Garage","Backyard Camera \u00b7 Garden","Lobby Cam \u00b7 Lobby"],"evidence":["facets","keywords","prefix","trigram"],"t":{"parse":0.23,"retrieve":1.08,"fuse":0.12,"meaning":0.0}}]},{"query":"something to cool the bedroom","intent":"descriptive","corrections":[],"entities":[{"kind":"room","label":"Bedroom"}],"excluded":[],"network":"","power":"","command":"","gate":{"outcome":"rerank","reason":"Descriptive intent","path":[{"rule":"g1ExactName","fired":false},{"rule":"g2SetIntent","fired":false},{"rule":"g3TooShort","fired":false},{"rule":"g4Descriptive","fired":true},{"rule":"g9Available","fired":true}]},"phases":[{"phase":"instant","count":18,"candidates":59,"top":["Bedroom AC \u00b7 Bedroom","Bedroom Light \u00b7 Bedroom","Bedroom Lamp \u00b7 Bedroom","Bedroom Switch \u00b7 Bedroom","Bedroom AC 2 \u00b7 Bedroom"],"evidence":["facets","keywords","trigram"],"t":{"parse":0.25,"retrieve":1.36,"fuse":0.51}},{"phase":"hybrid","count":18,"candidates":87,"top":["Bedroom AC \u00b7 Bedroom","Bedroom AC 2 \u00b7 Bedroom","Master Bedroom AC \u00b7 Master Bedroom","Bedroom Light \u00b7 Bedroom","Bedroom Ceiling Fan \u00b7 Bedroom"],"evidence":["concept","facets","keywords","prefix","semantic","trigram"],"t":{"parse":0.25,"retrieve":1.36,"fuse":0.51,"meaning":6.62}},{"phase":"refined","count":7,"candidates":87,"top":["Bedroom AC \u00b7 Bedroom","Bedroom AC 2 \u00b7 Bedroom","Bedroom Ceiling Fan \u00b7 Bedroom","Bedroom Ceiling Fan 2 \u00b7 Bedroom","Master Bedroom AC \u00b7 Master Bedroom"],"evidence":["concept","facets","keywords","prefix","semantic","trigram"],"t":{"parse":0.25,"retrieve":1.36,"fuse":0.51,"meaning":6.62,"refine":3.0}}]},{"query":"movie night","intent":"descriptive","corrections":[],"entities":[],"excluded":[],"network":"","power":"","command":"","gate":{"outcome":"rerank","reason":"Descriptive intent","path":[{"rule":"g1ExactName","fired":false},{"rule":"g2SetIntent","fired":false},{"rule":"g3TooShort","fired":false},{"rule":"g4Descriptive","fired":true},{"rule":"g9Available","fired":true}]},"phases":[{"phase":"instant","count":5,"candidates":5,"top":["Movie Projector \u00b7 Media Room","Porch Light \u00b7 Porch","WiZ Light \u00b7 Entrance","Govee Light \u00b7 Living Room","Attic Light \u00b7 Attic"],"evidence":["keywords","trigram"],"t":{"parse":0.22,"retrieve":0.81,"fuse":0.03}},{"phase":"hybrid","count":18,"candidates":40,"top":["Living Room TV \u00b7 Living Room","Movie Projector \u00b7 Media Room","Media Room Projector \u00b7 Media Room","Master Bedroom TV \u00b7 Master Bedroom","Meeting Room Projector \u00b7 Meeting Room"],"evidence":["concept","semantic"],"t":{"parse":0.22,"retrieve":0.81,"fuse":0.03,"meaning":0.58}},{"phase":"refined","count":8,"candidates":40,"top":["Movie Projector \u00b7 Media Room","Media Room Projector \u00b7 Media Room","Living Room TV \u00b7 Living Room","Meeting Room Projector \u00b7 Meeting Room","Master Bedroom TV \u00b7 Master Bedroom"],"evidence":["concept","semantic"],"t":{"parse":0.22,"retrieve":0.81,"fuse":0.03,"meaning":0.58,"refine":0.76}}]},{"query":"turn off all lights","intent":"command","corrections":[],"entities":[{"kind":"type","label":"Light"}],"excluded":[],"network":"","power":"","command":"turn off 112","gate":{"outcome":"skip","reason":"Set query: the filtered set is the answer","path":[{"rule":"g1ExactName","fired":false},{"rule":"g2SetIntent","fired":true}]},"phases":[{"phase":"instant","count":112,"candidates":112,"top":["Bedroom Light \u00b7 Bedroom","Kitchen Light \u00b7 Kitchen","Staircase Light \u00b7 Staircase","Hue Lightstrip \u00b7 Living Room","Hallway Light \u00b7 Hallway"],"evidence":["facets","keywords","prefix","trigram"],"t":{"parse":0.23,"retrieve":2.18,"fuse":0.93}},{"phase":"hybrid","count":112,"candidates":112,"top":["Bedroom Light \u00b7 Bedroom","Kitchen Light \u00b7 Kitchen","Staircase Light \u00b7 Staircase","Hue Lightstrip \u00b7 Living Room","Hallway Light \u00b7 Hallway"],"evidence":["facets","keywords","prefix","trigram"],"t":{"parse":0.23,"retrieve":2.18,"fuse":0.93,"meaning":0.0}}]}];
+
+const RETRIEVERS = [
+  ["exact", "Name"], ["prefix", "Name"], ["keywords", "Words (BM25)"], ["trigram", "Typo"], ["phonetic", "Typo"],
+  ["facets", "Type, room, brand, status"], ["semantic", "Meaning"], ["concept", "Meaning → type"], ["personal", "Your habits"],
+];
+const GATE_RULES = [
+  ["g1ExactName", "G1", "Exact name match → pin it, skip"],
+  ["g2SetIntent", "G2", "Set query → the filtered set is the answer"],
+  ["g3TooShort", "G3", "Under 3 characters → skip"],
+  ["g4Descriptive", "G4", "Descriptive query → wants the model"],
+  ["g5Dominant", "G5", "Top result clearly ahead → skip"],
+  ["g6NearTie", "G6", "Two or more within 10 % of the top → wants the model"],
+  ["g7WeakEvidence", "G7", "Top 3 rest on typo/meaning only → wants the model"],
+  ["g8Confident", "G8", "Otherwise → confident, skip"],
+  ["g9Available", "G9", "Model available → re-rank, else fallback"],
+];
+const PHASE_INFO = {
+  instant: { when: "same frame", note: "Lexical retrievers plus personal signals, fused." },
+  hybrid: { when: "+120 ms idle while typing", note: "Meaning lists join and fusion runs again." },
+  refined: { when: "submitted, ≤ 2 s", note: "The model's order, checked by the validator." },
+  fallback: { when: "model unavailable or late", note: "The model was wanted but didn't answer in time, so the hybrid order stays." },
+};
+const TIMING_COLORS = { parse: "var(--muted)", retrieve: "var(--instant)", fuse: "var(--accent)", meaning: "var(--hybrid)", refine: "var(--refined)" };
+
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const $ = id => document.getElementById(id);
+let current = 0, timers = [];
+
+function renderQueries() {
+  const bar = $("queries");
+  TRACE.forEach((q, i) => {
+    const b = el("button", "chip", q.query);
+    b.type = "button"; b.id = "q-" + i;
+    b.setAttribute("aria-pressed", i === current ? "true" : "false");
+    b.addEventListener("click", () => { current = i; select(); play(); });
+    bar.append(b);
+  });
+  const r = el("button", "replay", "↻ Replay phases");
+  r.type = "button"; r.id = "replay";
+  r.addEventListener("click", play);
+  bar.append(r);
+}
+
+function kv(label, content) {
+  const d = el("div", "kv"); d.append(el("span", "eyebrow", label)); d.append(content); return d;
+}
+function tags(items, cls) {
+  const t = el("div", "tags");
+  if (!items.length) t.append(el("span", "tag", "none"));
+  items.forEach(x => t.append(el("span", "tag" + (cls ? " " + cls : ""), x)));
+  return t;
+}
+
+function renderUnderstood(q) {
+  const u = $("understood"); u.replaceChildren();
+  u.append(kv("Intent", tags([q.intent], "intent")));
+  if (q.corrections.length) u.append(kv("Typo fixed", tags(q.corrections.map(c => `${c.from} → ${c.to} (${c.method}, ${Math.round(c.confidence * 100)}%)`))));
+  u.append(kv("Entities", tags(q.entities.map(e => `${e.kind}: ${e.label}`))));
+  if (q.excluded.length) u.append(kv("Excluded", tags(q.excluded.map(e => `${e.kind}: ${e.label}`), "minus")));
+  if (q.network || q.power) u.append(kv("Status filter", tags([q.network, q.power].filter(Boolean))));
+  if (q.command) {
+    const [verb, ...n] = q.command.split(" "); const count = n.pop();
+    u.append(kv("Command", tags([`${q.command.replace(/ \d+$/, "")} · ${count} devices, needs confirmation`])));
+  }
+}
+
+function phaseCard(p, q, kind) {
+  const c = el("article", "phase"); c.style.setProperty("--pc", `var(--${kind})`); c.dataset.phase = kind;
+  const head = el("div", "phase-name"); head.append(el("h3", null, kind)); head.append(el("span", "when", PHASE_INFO[kind].when));
+  c.append(head);
+  if (!p) {
+    c.classList.add("absent");
+    const why = kind === "refined"
+      ? (q.gate.outcome === "skip" ? `Not needed: ${q.gate.reason.toLowerCase()}.` : "No model answer.")
+      : "Meaning signals added nothing for this query.";
+    c.append(el("p", "note", why));
+    return c;
+  }
+  const s = el("div", "stats");
+  const stat = (v, l) => { const d = el("span"); d.append(el("b", null, v)); d.append(document.createTextNode(l)); return d; };
+  s.append(stat(String(p.count), "shown")); s.append(stat(String(p.candidates), "candidates"));
+  const total = Object.values(p.t).reduce((a, b) => a + b, 0);
+  s.append(stat(total.toFixed(1), "ms so far"));
+  c.append(s);
+  const bar = el("div", "timing");
+  Object.entries(p.t).forEach(([k, v]) => { if (v <= 0) return; const sp = el("span"); sp.style.width = (v / total * 100) + "%"; sp.style.background = TIMING_COLORS[k]; sp.title = `${k} ${v} ms`; bar.append(sp); });
+  c.append(bar);
+  const lg = el("div", "legend");
+  Object.entries(p.t).forEach(([k, v]) => { if (v <= 0) return; const s2 = el("span"); const i = el("i"); i.style.background = TIMING_COLORS[k]; s2.append(i); s2.append(document.createTextNode(`${k} ${v}`)); lg.append(s2); });
+  c.append(lg);
+  const ol = el("ol", "results");
+  p.top.forEach((r, i) => {
+    const [name, room] = r.split(" · ");
+    const li = el("li"); li.append(el("span", "n", String(i + 1)));
+    const t = el("span", "name", name); li.append(t);
+    if (room) li.append(el("span", "room", room));
+    ol.append(li);
+  });
+  c.append(ol);
+  c.append(el("p", "note", PHASE_INFO[kind].note));
+  return c;
+}
+
+function renderPhases(q) {
+  const box = $("phases"); box.replaceChildren();
+  const by = Object.fromEntries(q.phases.map(p => [p.phase, p]));
+  // Hybrid with the same list as instant means meaning added nothing.
+  const inst = by.instant, hyb = by.hybrid;
+  const hybridSame = hyb && inst && JSON.stringify(hyb.top) === JSON.stringify(inst.top) && hyb.candidates === inst.candidates;
+  box.append(phaseCard(inst, q, "instant"));
+  box.append(phaseCard(hybridSame ? null : hyb, q, "hybrid"));
+  const last = by.refined || by.fallback;
+  box.append(phaseCard(last, q, by.fallback ? "fallback" : "refined"));
+}
+
+function renderLamps(q) {
+  const final = q.phases[q.phases.length - 1];
+  const on = new Set(final.evidence);
+  const box = $("lamps"); box.replaceChildren();
+  RETRIEVERS.forEach(([id, group]) => {
+    const d = el("div", "lamp" + (on.has(id) ? " on" : ""));
+    d.append(el("span", "lname", id)); d.append(el("span", "lgroup", group));
+    box.append(d);
+  });
+}
+
+function renderGate(q) {
+  const fired = new Map(q.gate.path.map(s => [s.rule, s.fired]));
+  const ol = $("gate"); ol.replaceChildren();
+  GATE_RULES.forEach(([id, code, text]) => {
+    const li = el("li");
+    const has = fired.has(id), f = fired.get(id);
+    li.className = !has ? "skipped" : (f ? "fired" : "");
+    li.append(el("span", "rule", code)); li.append(el("span", null, text));
+    li.append(el("span", "res", !has ? "not reached" : (f ? "yes" : "no")));
+    ol.append(li);
+  });
+  const v = $("verdict");
+  v.className = "verdict" + (q.gate.outcome === "rerank" ? " rerank" : "");
+  v.textContent = (q.gate.outcome === "rerank" ? "Re-rank with the model: " : q.gate.outcome === "fallback" ? "Fallback: " : "Skip the model: ") + q.gate.reason + ".";
+}
+
+function select() {
+  const q = TRACE[current];
+  document.querySelectorAll("#queries .chip").forEach((b, i) => b.setAttribute("aria-pressed", i === current ? "true" : "false"));
+  renderUnderstood(q); renderPhases(q); renderLamps(q); renderGate(q);
+}
+
+function play() {
+  timers.forEach(clearTimeout); timers = [];
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const cards = [...document.querySelectorAll("#phases .phase")];
+  cards.forEach(c => { c.classList.add("dim"); c.classList.remove("lit"); });
+  cards.forEach((c, i) => {
+    timers.push(setTimeout(() => {
+      cards.forEach(x => x.classList.remove("lit"));
+      c.classList.remove("dim"); if (!c.classList.contains("absent")) c.classList.add("lit");
+    }, 250 + i * 650));
+  });
+  timers.push(setTimeout(() => cards.forEach(x => { x.classList.remove("lit"); x.classList.remove("dim"); }), 250 + cards.length * 650 + 500));
+}
+
+/* Pipeline stages */
+const STAGES = [
+  { id: "S1", phase: "instant", name: "Normalize & correct", mods: ["SearchText", "SearchQuery"],
+    does: ["Lower-cases, folds accents and splits the text into tokens.", "Fixes typos four ways: edit distance, phonetic keys, word splits (\"livingroom\") and suffixes.", "A correction is used only when it's confident enough. Weaker ones are kept as soft evidence."],
+    nums: [["Correction cost weight", "0.3"], ["Phonetic confidence", "0.6"], ["Split / suffix confidence", "0.9"], ["Compound split from", "6 letters"]] },
+  { id: "S2", phase: "instant", name: "Entities & intent", mods: ["SearchQuery", "SearchKnowledge"],
+    does: ["Matches phrases against the knowledge base (types, brands, rooms, synonyms) plus this home's own rooms and brands.", "Reads status (\"offline\", \"on\") and exclusions (\"except kitchen\").", "Classifies intent: navigational, categorical, compound, descriptive or command."],
+    nums: [["Longest phrase", "4 words"], ["Hard filter needs confidence", "≥ 0.5"], ["Exact match needs confidence", "≥ 0.6"], ["Intents", "6"]] },
+  { id: "S3", phase: "instant", name: "Retrieve", mods: ["SearchRetrieval", "SearchIndex", "SearchPersonalization"],
+    does: ["Six lexical retrievers read the snapshot: exact name, prefix, BM25 keywords, trigram, phonetic and facet bitsets.", "Personalisation adds a list from usage, favourites and learned nicknames.", "In the hybrid phase, the meaning plug-in adds semantic and concept lists."],
+    nums: [["Prefix / keyword limit", "40 / 60"], ["Trigram minimum Dice", "0.30"], ["Trigram / phonetic limit", "30 / 30"], ["BM25 k1", "1.2"], ["Personal limit", "20"]] },
+  { id: "S4", phase: "instant", name: "Fuse", mods: ["SearchRanking"],
+    does: ["Reciprocal-rank fusion merges every list into one order.", "Boosts for covering every query word, for matching the named entities, and a small usage prior.", "If nothing is found: raise typo tolerance once, then relax filters (status, room, brand, type, exclusions) and say so."],
+    nums: [["RRF k", "20"], ["Coverage boost", "0.12"], ["Entity match boost", "0.10"], ["Prior boost (descriptive)", "0.04 (0.03)"]] },
+  { id: "M", phase: "hybrid", name: "Meaning", mods: ["SearchSemantic"],
+    does: ["Embeds the query with NLContextualEmbedding, or the bundled lexicon embedding when that's missing.", "Semantic list: devices whose text is close in meaning.", "Concept routing: maps needs like \"cool\" to device types (AC, fan) and boosts the named room.", "While typing it waits 120 ms of idle time first."],
+    nums: [["Semantic minimum cosine", "0.35"], ["Concept minimum similarity", "0.45"], ["Concept relative cut-off", "0.85 of best"], ["Types per concept", "4"], ["Room boost", "0.15"]] },
+  { id: "S5", phase: "refined", name: "Gate", mods: ["SearchRanking"],
+    does: ["Decides whether the model is worth about a second: rules G1–G9, first decisive rule wins.", "Only for submitted searches. Typing never calls the model.", "When there are no results at all, one model rewrite of the query may run first."],
+    nums: [["Minimum characters", "3"], ["Dominance margin", "25 %"], ["Near-tie band", "10 %"], ["Candidates sent", "12"]] },
+  { id: "S6", phase: "refined", name: "Re-rank", mods: ["SearchRerank"],
+    does: ["Apple Intelligence (Foundation Models) orders the top 12 candidates from a compact numbered prompt.", "Streams: validated top rows lock in before the rest arrives.", "A 2-second deadline. Late, failed or unavailable → fallback phase, hybrid order stays."],
+    nums: [["Deadline", "2 s"], ["Max response tokens", "64"], ["Best / related shown", "8 / 6"], ["Name length in prompt", "40 chars"]] },
+  { id: "S7–8", phase: "refined", name: "Validate & present", mods: ["SearchRerank", "SearchRanking"],
+    does: ["The model's answer is a suggestion. V1–V5 drop invalid numbers, duplicates and filter failures, pin exact names first, and recover any device that matches every query word.", "V6 blends model and fused scores and hides weak rows.", "Presenter builds sections (best matches, related, matching set), reason chips, highlights and any command."],
+    nums: [["Blend λ descriptive / other", "0.65 / 0.45"], ["Hide below", "0.15"], ["Best-match threshold", "0.55"], ["If nothing qualifies", "top 5 fused"]] },
+];
+let stageSel = 0;
+function renderChain() {
+  const box = $("chain"); box.replaceChildren();
+  STAGES.forEach((s, i) => {
+    const b = el("button", "stage"); b.type = "button"; b.id = "stage-" + i;
+    b.setAttribute("role", "tab"); b.setAttribute("aria-selected", i === stageSel ? "true" : "false");
+    b.style.setProperty("--pc", `var(--${s.phase})`);
+    b.append(el("span", "sid", s.id)); b.append(el("span", "sname", s.name));
+    b.addEventListener("click", () => { stageSel = i; renderChain(); renderStage(); });
+    box.append(b);
+  });
+}
+function renderStage() {
+  const s = STAGES[stageSel], d = $("stage-detail"); d.replaceChildren();
+  const left = el("div"); left.style.display = "grid"; left.style.gap = "12px"; left.style.minWidth = "0";
+  const h = el("h3", null, `${s.id} · ${s.name}`); left.append(h);
+  const ul = el("ul"); s.does.forEach(t => ul.append(el("li", null, t))); left.append(ul);
+  const m = el("div", "mods"); s.mods.forEach(x => m.append(el("span", "tag", x))); left.append(m);
+  const right = el("div", "numbers");
+  s.nums.forEach(([k, v]) => { const r = el("div"); r.append(el("span", null, k)); r.append(el("span", null, v)); right.append(r); });
+  d.append(left); d.append(right);
+}
+
+/* Modules */
+const MODULES = {
+  SearchCore: { d: "Value types, config, telemetry", deps: [] },
+  SearchText: { d: "Normalize, stem, typo distance, phonetic, trigrams", deps: ["SearchCore"] },
+  SearchKnowledge: { d: "Types, brands, rooms, lexicon (JSON)", deps: ["SearchCore", "SearchText"] },
+  SearchIndex: { d: "Immutable snapshot and its builder", deps: ["SearchCore", "SearchText", "SearchKnowledge"] },
+  SearchQuery: { d: "Query understanding (S1–S2)", deps: ["SearchCore", "SearchText", "SearchKnowledge", "SearchIndex"] },
+  SearchRetrieval: { d: "Lexical retrievers (S3)", deps: ["SearchCore", "SearchText", "SearchIndex"] },
+  SearchRanking: { d: "Fusion, gate, presenter (S4, S5, S8)", deps: ["SearchCore", "SearchText", "SearchKnowledge", "SearchIndex"] },
+  DeviceSearch: { d: "Engine actor, index sync, plug-in protocols", deps: ["SearchCore", "SearchText", "SearchKnowledge", "SearchIndex", "SearchQuery", "SearchRetrieval", "SearchRanking"] },
+  SearchSemantic: { d: "Embeddings, meaning and concept lists", deps: ["DeviceSearch"] },
+  SearchRerank: { d: "Foundation Models re-rank, validator, rewrite", deps: ["DeviceSearch"] },
+  SearchPersonalization: { d: "Priors, nicknames, reformulations", deps: ["DeviceSearch"] },
+  DeviceSearchUI: { d: "SwiftUI search screen, view model, voice", deps: ["DeviceSearch"] },
+  "App target": { d: "Services, Spotlight indexer, App Intents, Ask", deps: ["DeviceSearch", "SearchSemantic", "SearchRerank", "SearchPersonalization", "DeviceSearchUI"], app: true },
+  SearchTestSupport: { d: "Synthetic homes, test index", deps: ["SearchCore", "SearchText", "SearchKnowledge", "SearchIndex", "SearchQuery"] },
+  SearchEvaluation: { d: "Golden set, metrics, runner", deps: ["DeviceSearch", "SearchTestSupport"] },
+};
+const LAYERS = [
+  ["App", ["App target"]],
+  ["UI", ["DeviceSearchUI"]],
+  ["Plug-ins", ["SearchSemantic", "SearchRerank", "SearchPersonalization"]],
+  ["Engine", ["DeviceSearch"]],
+  ["Query stages", ["SearchQuery", "SearchRetrieval", "SearchRanking"]],
+  ["Index", ["SearchIndex"]],
+  ["Text & knowledge", ["SearchText", "SearchKnowledge"]],
+  ["Foundation", ["SearchCore"]],
+  ["Tooling", ["SearchTestSupport", "SearchEvaluation"]],
+];
+function allDeps(name, seen = new Set()) {
+  (MODULES[name]?.deps || []).forEach(d => { if (!seen.has(d)) { seen.add(d); allDeps(d, seen); } });
+  return seen;
+}
+let modSel = null;
+function renderModules() {
+  const box = $("layers"); box.replaceChildren();
+  box.classList.toggle("focus", !!modSel);
+  const deps = modSel ? allDeps(modSel) : new Set();
+  const users = new Set(modSel ? Object.keys(MODULES).filter(m => allDeps(m).has(modSel)) : []);
+  LAYERS.forEach(([label, mods]) => {
+    const row = el("div", "layer"); row.append(el("span", "lbl", label));
+    const r = el("div", "mods-row");
+    mods.forEach(m => {
+      const b = el("button", "mod" + (MODULES[m].app ? " app" : "")); b.type = "button";
+      b.id = "mod-" + m.replace(/\W/g, "");
+      if (m === modSel) b.classList.add("sel"); else if (deps.has(m)) b.classList.add("dep"); else if (users.has(m)) b.classList.add("user");
+      b.setAttribute("aria-pressed", m === modSel ? "true" : "false");
+      b.append(el("span", "mn", m)); b.append(el("span", "md", MODULES[m].d));
+      b.addEventListener("click", () => { modSel = modSel === m ? null : m; renderModules(); });
+      r.append(b);
+    });
+    row.append(r); box.append(row);
+  });
+  const help = $("mod-help"); help.replaceChildren();
+  if (!modSel) { help.textContent = "Select a module."; return; }
+  const b = el("b", null, modSel); help.append(b);
+  help.append(document.createTextNode(` uses ${deps.size} module${deps.size === 1 ? "" : "s"} and is used by ${users.size}. Select it again to clear.`));
+}
+
+renderQueries(); select(); renderChain(); renderStage(); renderModules();
+</script>
+
+</html>

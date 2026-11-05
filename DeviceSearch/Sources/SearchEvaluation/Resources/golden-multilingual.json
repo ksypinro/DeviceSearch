@@ -1,0 +1,22 @@
+[
+  {"text": "এসি", "category": "multilingual", "primary": ["ac"], "secondary": [], "room": null, "expect": "set"},
+  {"text": "বেডরুম এসি", "category": "multilingual", "primary": ["ac"], "secondary": [], "room": "bedroom", "expect": "set"},
+  {"text": "বেডরুমের এসি", "category": "multilingual", "primary": ["ac"], "secondary": [], "room": "bedroom", "expect": "set"},
+  {"text": "টিভি", "category": "multilingual", "primary": ["tv"], "secondary": [], "room": null, "expect": "set"},
+  {"text": "বসার ঘর টিভি", "category": "multilingual", "primary": ["tv"], "secondary": [], "room": "living-room", "expect": "set"},
+  {"text": "লাইট", "category": "multilingual", "primary": ["light"], "secondary": [], "room": null, "expect": "set"},
+  {"text": "রান্নাঘর লাইট", "category": "multilingual", "primary": ["light"], "secondary": [], "room": "kitchen", "expect": "set"},
+  {"text": "রান্নাঘরের লাইট", "category": "multilingual", "primary": ["light"], "secondary": [], "room": "kitchen", "expect": "set"},
+  {"text": "বাতি", "category": "multilingual", "primary": ["light"], "secondary": [], "room": null, "expect": "set"},
+  {"text": "ফ্যান", "category": "multilingual", "primary": ["fan"], "secondary": [], "room": null, "expect": "set"},
+  {"text": "বেডরুম ফ্যান", "category": "multilingual", "primary": ["fan"], "secondary": [], "room": "bedroom", "expect": "set"},
+  {"text": "শোবার ঘর এসি", "category": "multilingual", "primary": ["ac"], "secondary": [], "room": "bedroom", "expect": "set"},
+  {"text": "klimaanlage", "category": "multilingual", "primary": ["ac"], "secondary": [], "room": null, "expect": "set"},
+  {"text": "klimaanlage bedroom", "category": "multilingual", "primary": ["ac"], "secondary": [], "room": "bedroom", "expect": "set"},
+  {"text": "বেডরুম লাইট", "category": "multilingual", "primary": ["light"], "secondary": [], "room": "bedroom", "expect": "set"},
+  {"text": "বসার ঘরের এসি", "category": "multilingual", "primary": ["ac"], "secondary": [], "room": "living-room", "expect": "set"},
+  {"text": "রান্নাঘর", "category": "multilingual", "primary": [], "secondary": [], "room": "kitchen", "expect": "set"},
+  {"text": "বেডরুম", "category": "multilingual", "primary": [], "secondary": [], "room": "bedroom", "expect": "set"},
+  {"text": "লাইটগুলো", "category": "multilingual", "primary": ["light"], "secondary": [], "room": null, "expect": "set"},
+  {"text": "বাতি রান্নাঘর", "category": "multilingual", "primary": ["light"], "secondary": [], "room": "kitchen", "expect": "set"}
+]
