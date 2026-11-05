@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Spotlight's "Search in App" opens the app's search with the typed text (SystemActivities.swift). -->
+	<key>CoreSpotlightContinuation</key>
+	<true/>
+	<!-- The device screen's NSUserActivity (SystemActivities.viewDeviceType). -->
+	<key>NSUserActivityTypes</key>
+	<array>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER).viewDevice</string>
+	</array>
+</dict>
+</plist>
